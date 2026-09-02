@@ -1,0 +1,3 @@
+MY_SSID="Your SSID"
+MY_PASSWD="Your WiFi Password"
+RPI_IP="Your RPi IP address"

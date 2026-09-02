@@ -1,0 +1,6 @@
+# Config SMTP Gmail
+SMTP_EMAIL_SENDER="Sender Email address"
+SMTP_PASSWORD="Application password" # You need to create one if you use Google. Takes 2 minutes
+
+# Config Receiver
+EMAIL_RECEIVER="Receiver Email address"
