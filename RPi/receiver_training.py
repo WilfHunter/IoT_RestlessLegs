@@ -24,18 +24,18 @@ def init_database():
     """)
     conn.commit()
     conn.close()
-    print(f"🗄️ Base de données de flux continu prête.")
+    print("DB for training ready.")
 
 init_database()
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 sock.bind((UDP_IP, UDP_PORT))
 
-print("📡 Récepteur de flux continu à l'écoute...")
+print("Flow reciever ready")
 
 TYPE_DE_SESSION = 'normal' 
 
-# Liste temporaire en mémoire RAM pour stocker le lot de données avant écriture
+# Init
 tampon_donnees = []
 compteur_total = 0
 
@@ -46,28 +46,26 @@ try:
         if len(data) < 24:
             continue
             
-        # Extraction 50Hz
+        # 50Hz
         mpu_bytes = data[:24]
         audio_bytes = data[24:]
         
         ax, ay, az, gx, gy, gz = struct.unpack("6f", mpu_bytes)
         timestamp_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
         
-        # On ajoute le tuple dans notre tampon en RAM (aucune écriture disque ici)
+        # We put buffer tuple in RAM
         tampon_donnees.append((
             timestamp_str, ax, ay, az, gx, gy, gz, bytes(audio_bytes), TYPE_DE_SESSION
         ))
         compteur_total += 1
         
-        # Écriture par paquets de 50 dans la DB
-        if len(tampon_donnees) >= 50:
+        # Writing into DB by batch of 250
+        if len(tampon_donnees) >= 250:
             try:
-                # On ouvre la connexion uniquement pour cette transaction rapide
                 conn = sqlite3.connect(DB_NAME, timeout=20.0)
                 conn.execute("PRAGMA journal_mode=WAL;")
                 cursor = conn.cursor()
                 
-                # executemany est beaucoup plus rapide qu'une boucle d'inserts
                 cursor.executemany("""
                     INSERT INTO flux_brut 
                     (timestamp, acc_x, acc_y, acc_z, gyro_x, gyro_y, gyro_z, audio_pcm_50ms, session_type) 
@@ -75,18 +73,17 @@ try:
                 """, tampon_donnees)
                 
                 conn.commit()
-                conn.close() # Libère IMMÉDIATEMENT la base pour le script de l'IA
+                conn.close() # It's not really necessary anymore, but I release the DB
                 
-                print(f"💾 {compteur_total} échantillons insérés (Session: {TYPE_DE_SESSION}).", end="\r")
-                tampon_donnees.clear() # On vide le tampon RAM
+                print(f"{compteur_total} samples inserted (Session: {TYPE_DE_SESSION}).", end="\r")
+                tampon_donnees.clear() # Buffer emptying
                 
             except sqlite3.OperationalError as e:
-                # En cas de conflit rare, on n'efface pas le tampon, on réessaye au prochain cycle
-                print(f"\n⚠️ Base momentanément occupée, attente... ({e})")
+                print(f"\nDB busy, waiting... ({e})")
 
 except KeyboardInterrupt:
-    print("\n🛑 Fermeture propre du flux.")
-    # On vide le reste du tampon s'il contient des données avant de couper
+    print("\n Closing connection")
+    # Empty buffer before shutting down
     if tampon_donnees:
         conn = sqlite3.connect(DB_NAME, timeout=10.0)
         cursor = conn.cursor()
