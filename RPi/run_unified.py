@@ -19,7 +19,7 @@ from tensorflow.keras.models import load_model
 # CONFIG
 UDP_IP = "0.0.0.0"
 UDP_PORT = 5005
-MODEL_PATH = "/home/benoit/Projet/modele.h5"
+MODEL_PATH = "./modele.h5"
 
 FS_MPU = 50           # 50 Hz
 DUREE_FENETRE = 5     # Time frame = 5s
